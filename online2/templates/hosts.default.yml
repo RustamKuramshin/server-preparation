@@ -1,0 +1,32 @@
+all:
+  children:
+# replace "type_servers_group"
+    type_servers_group:
+      hosts:
+# replace "type_server_alias"
+        type_server_alias:
+# replace "ip_or_domain_name","ssh_port_of_server","user_name_or_root","user_pass"
+          ansible_host: ip_or_domain_name
+          ansible_port: ssh_port_of_server
+          ansible_user: user_name_or_root
+          ansible_ssh_pass: user_pass
+
+# For example:
+#all:
+#  children:
+#    # replace "type_servers_group"
+#    online2:
+#      hosts:
+#        # replace "type_server_alias"
+#        o2test:
+#          # replace "ip_or_domain_name","ssh_port_of_server","user_name_or_root","user_pass"
+#          ansible_host: 123.123.123.123
+#          ansible_port: 22
+#          ansible_user: root
+#          ansible_ssh_pass: Abc@123
+#        o2stage:
+#          # replace "ip_or_domain_name","ssh_port_of_server","user_name_or_root","user_pass"
+#          ansible_host: 123.123.125.125
+#          ansible_port: 22
+#          ansible_user: root
+#          ansible_ssh_pass: Abc@125

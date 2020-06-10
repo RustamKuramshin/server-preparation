@@ -1,0 +1,94 @@
+---
+# Предварительная настройка серверов: создание ssh-ключей, создание админ-юзера, применение политик безопасности и настройка файерволла.
+- name: ssh-keys management
+  hosts: 127.0.0.1
+  connection: local
+  become: no
+  gather_facts: no
+  tasks:
+  - name: Create local ssh-keys directory if it does not exist
+    file:
+      path: "{{ ssh_key_directory }}"
+      state: directory
+      mode: '0700'
+  - name: Generate ssh-keys
+    openssh_keypair:
+      path: "{{ ssh_key_directory }}/{{ admin_user_name }}"
+      force: yes
+      comment: "o2 ssh-key"
+      mode: '600'
+      size: 2048
+      type: rsa
+
+- name: Prerequisites
+  hosts: all
+  remote_user: root
+  become: no
+  gather_facts: yes
+  tasks:
+  - include_role:
+      name: ansible-role-bootstrap
+  - include_role:
+      name: ansible-role-core_dependencies
+  - include_role:
+      name: ansible-role-users
+    vars:
+      users_ssh_key_directory: "{{ ssh_key_directory }}"
+      users_group_list:
+        - name: wheel
+          gid: 1024
+          state: present
+        - name: docker
+          gid: 1048
+          state: present
+      users_user_list:
+        - name: "{{ admin_user_name }}"
+          comment: admin user
+          shell: /bin/bash
+          uid: 1024
+          groups: wheel,docker
+          cron_allow: yes
+          sudo_options: "ALL=(ALL) NOPASSWD: ALL"
+          state: present
+          update_password: always
+          password: "{{ admin_user_pass_hash }}"
+  - name: Create .ssh directory for {{ admin_user_name }}
+    file:
+      path: "/home/{{ admin_user_name }}/.ssh"
+      state: directory
+      mode: "0700"
+    become: yes
+    become_user: "{{ admin_user_name }}"
+  - name: Copy generated private ssh key for {{ admin_user_name }}
+    copy:
+      src: "{{ ssh_key_directory }}/{{ admin_user_name }}"
+      dest: "/home/{{ admin_user_name }}/.ssh/id_rsa"
+      mode: "0400"
+      owner: "{{ admin_user_name }}"
+  - name: Place authorized_key for {{ admin_user_name }}
+    authorized_key:
+      user: "{{ admin_user_name }}"
+      state: present
+      key: "{{ lookup('file', './{{ ssh_key_directory }}/{{ admin_user_name }}.pub') }}"
+  - include_role:
+      name: ansible-role-security
+  - include_role:
+      name: ansible-role-firewall
+    vars:
+      firewall_services:
+        - name: ssh
+
+- name: Remove ssh auth
+  hosts: 127.0.0.1
+  connection: local
+  become: no
+  gather_facts: no
+  tasks:
+  - name: Make sure ssh auth is not in the hosts.yml
+    lineinfile:
+      path: ./inventories/hosts.yml
+      state: absent
+      regexp: "{{ item }}"
+    with_items:
+      - "ansible_ssh_pass"
+      - "ansible_user"

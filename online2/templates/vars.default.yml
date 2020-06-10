@@ -1,0 +1,7 @@
+---
+# override admin_user_name and admin_user_pass
+admin_user_name: admin
+# default pass: pc62TRh2KwBecwhv
+# generate new hash: mkpasswd --method=sha-512
+admin_user_pass_hash: $6$NiKmNnlwpWl6$sdoLqOjzWH3ROlI4Cca1wyi5KDt0m4oiZiZ505LkBoJlAMiA/y/YToSpisb.G85nC6IWjva8eO7uLPhbaMK7v/
+ssh_key_directory: ssh_keys

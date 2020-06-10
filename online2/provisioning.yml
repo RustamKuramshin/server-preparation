@@ -1,0 +1,239 @@
+---
+# Подготовка требуемого окружения на сервере: установка необходимых пакетов и сервисов.
+- name: Server provisioning
+  hosts: all
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    ansible_ssh_private_key_file: "./ssh_keys/{{ admin_user_name }}"
+  remote_user: "{{ admin_user_name }}"
+  become: yes
+  gather_facts: yes
+  tasks:
+  - include_role:
+      name: ansible-role-epel
+  - include_role:
+      name: ansible-role-buildtools
+  - include_role:
+      name: ansible-role-python_pip
+  - include_role:
+      name: ansible-role-docker_ce
+
+- name: Install Zabbix backend services
+  hosts: o2test
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    ansible_ssh_private_key_file: "./ssh_keys/{{ admin_user_name }}"
+    nginx_remote_dir: "/home/{{ admin_user_name }}/nginx"
+    nginx_docker_alias: o2nginx
+  remote_user: "{{ admin_user_name }}"
+  become: yes
+  gather_facts: yes
+  tasks:
+  - name: Create a network
+    docker_network:
+      name: zabbix_net
+      driver: bridge
+  - name: Install Zabbix Aplliance
+    docker_container:
+      name: zabbix-appliance
+      image: zabbix/zabbix-appliance:latest
+      published_ports:
+        - 10051:10051
+      networks:
+        - name: zabbix_net
+          aliases:
+            - zabbix-appliance
+      restart_policy: always
+      volumes:
+        - /home/admin/data/zabbix_data:/var/lib/mysql
+  - name: Install Zabbix Agent
+    docker_container:
+      name: zabbix-agent
+      image: zabbix/zabbix-agent:latest
+      published_ports:
+        - 10050:10050
+      networks:
+        - name: zabbix_net
+          aliases:
+            - zabbix-agent
+      restart_policy: always
+      env:
+        ZBX_HOSTNAME: "o2test"
+        ZBX_SERVER_HOST: "zabbix-appliance"
+
+  - name: Create nginx dir
+    file:
+      path: "{{ nginx_remote_dir }}"
+      state: directory
+  - name: Copy nginx dir
+    copy:
+      src: ./templates/o2test/nginx/
+      dest: "{{ nginx_remote_dir }}/"
+  - name: Copy Dockerfile
+    copy:
+      src: ./docker/nginx/Dockerfile
+      dest: "{{ nginx_remote_dir }}/Dockerfile"
+  - name: Build nginx image
+    docker_image:
+      name: "{{ nginx_docker_alias }}"
+      tag: "{{ nginx_docker_alias }}"
+      build:
+        path: "/home/{{ admin_user_name }}/nginx"
+        nocache: yes
+      source: build
+      force_source: yes
+    register: docker_build_info
+
+  - debug:
+      var: docker_build_info.image
+
+  - name: Run nginx container
+    docker_container:
+      name: "{{ nginx_docker_alias }}"
+      image: "{{ docker_build_info.image.Id }}"
+      published_ports:
+        - 80:80
+        - 443:443
+      restart_policy: always
+      networks:
+        - name: zabbix_net
+          aliases:
+            - nginx
+    register: docker_run_info
+
+  - debug:
+      var: docker_run_info.container
+
+  - name: Docker system prune
+    shell: docker system prune -a -f
+    register: docker_prune_info
+
+  - debug:
+      var: docker_prune_info.stdout_lines
+
+  - name: Allow port
+    ufw:
+      rule: allow
+      port: '80'
+      proto: tcp
+  - name: Allow port
+    ufw:
+      rule: allow
+      port: '443'
+      proto: tcp
+
+- name: Install Zabbix Agent
+  hosts: o2stage
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    ansible_ssh_private_key_file: "./ssh_keys/{{ admin_user_name }}"
+  remote_user: "{{ admin_user_name }}"
+  become: yes
+  gather_facts: yes
+  tasks:
+  - name: Install Zabbix Agent
+    docker_container:
+      name: zabbix-agent
+      image: zabbix/zabbix-agent:latest
+      published_ports:
+        - 10050:10050
+      restart_policy: always
+      env:
+        ZBX_HOSTNAME: "o2stage"
+        ZBX_SERVER_HOST: "{{ hostvars['o2test']['ansible_default_ipv4']['address'] }}"
+  - name: Allow port
+    ufw:
+      rule: allow
+      port: '10050'
+      proto: tcp
+
+- name: Install nginx and Jenkins
+  hosts: o2stage
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    ansible_ssh_private_key_file: "./ssh_keys/{{ admin_user_name }}"
+    nginx_remote_dir: "/home/{{ admin_user_name }}/nginx"
+    nginx_docker_alias: o2nginx
+  remote_user: "{{ admin_user_name }}"
+  become: yes
+  gather_facts: yes
+  tasks:
+  - name: Create a network
+    docker_network:
+      name: nginx
+      driver: bridge
+  - name: Create nginx dir
+    file:
+      path: "{{ nginx_remote_dir }}"
+      state: directory
+  - name: Copy nginx dir
+    copy:
+      src: ./templates/o2stage/nginx/
+      dest: "{{ nginx_remote_dir }}/"
+  - name: Copy Dockerfile
+    copy:
+      src: ./docker/nginx/Dockerfile
+      dest: "{{ nginx_remote_dir }}/Dockerfile"
+  - name: Build nginx image
+    docker_image:
+      name: "{{ nginx_docker_alias }}"
+      tag: "{{ nginx_docker_alias }}"
+      build:
+        path: "/home/{{ admin_user_name }}/nginx"
+        nocache: yes
+      source: build
+      force_source: yes
+    register: docker_build_info
+
+  - debug:
+      var: docker_build_info.image
+
+  - name: Run nginx container
+    docker_container:
+      name: "{{ nginx_docker_alias }}"
+      image: "{{ docker_build_info.image.Id }}"
+      published_ports:
+        - 80:80
+        - 443:443
+      restart_policy: always
+      networks:
+        - name: nginx
+          aliases:
+            - nginx
+    register: docker_run_info
+
+  - debug:
+      var: docker_run_info.container
+
+  - name: Docker system prune
+    shell: docker system prune -a -f
+    register: docker_prune_info
+
+  - debug:
+      var: docker_prune_info.stdout_lines
+
+  - name: Allow port
+    ufw:
+      rule: allow
+      port: '80'
+      proto: tcp
+  - name: Allow port
+    ufw:
+      rule: allow
+      port: '443'
+      proto: tcp
+  - name: Install Jenkins
+    docker_container:
+      name: jenkins
+      image: jenkins/jenkins:lts
+      published_ports:
+        - 50000:50000
+      restart_policy: always
+      networks:
+        - name: nginx
+          aliases:
+            - jenkins
+    register: jenkins_run_info
+
+  - debug:
+      var: jenkins_run_info.container

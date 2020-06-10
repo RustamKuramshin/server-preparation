@@ -1,0 +1,30 @@
+[submodule "online2/roles/ansible-role-bootstrap"]
+	path = online2/roles/ansible-role-bootstrap
+	url = https://github.com/robertdebock/ansible-role-bootstrap.git
+[submodule "online2/roles/ansible-role-fail2ban"]
+	path = online2/roles/ansible-role-fail2ban
+	url = https://github.com/robertdebock/ansible-role-fail2ban
+[submodule "online2/roles/ansible-role-firewall"]
+	path = online2/roles/ansible-role-firewall
+	url = https://github.com/robertdebock/ansible-role-firewall.git
+[submodule "online2/roles/ansible-role-buildtools"]
+	path = online2/roles/ansible-role-buildtools
+	url = https://github.com/robertdebock/ansible-role-buildtools.git
+[submodule "online2/roles/ansible-role-python_pip"]
+	path = online2/roles/ansible-role-python_pip
+	url = https://github.com/robertdebock/ansible-role-python_pip.git
+[submodule "online2/roles/ansible-role-docker_ce"]
+	path = online2/roles/ansible-role-docker_ce
+	url = https://github.com/robertdebock/ansible-role-docker_ce.git
+[submodule "online2/roles/ansible-role-epel"]
+	path = online2/roles/ansible-role-epel
+	url = https://github.com/robertdebock/ansible-role-epel.git
+[submodule "online2/roles/ansible-role-users"]
+	path = online2/roles/ansible-role-users
+	url = https://github.com/robertdebock/ansible-role-users
+[submodule "online2/roles/ansible-role-core_dependencies"]
+	path = online2/roles/ansible-role-core_dependencies
+	url = https://github.com/robertdebock/ansible-role-core_dependencies
+[submodule "online2/roles/ansible-role-security"]
+	path = online2/roles/ansible-role-security
+	url = https://github.com/geerlingguy/ansible-role-security.git
